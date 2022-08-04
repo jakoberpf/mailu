@@ -86,7 +86,7 @@ services:
       - "/mailu/dav:/data"
 
   resolver:
-    image: jakoberpf/mailu-unbound:${MAILU_VERSION:-local}
+    image: jakoberpf/mailu-unbound:${PINNED_MAILU_VERSION:-local}
     env_file: mailu.env
     restart: always
     networks:
