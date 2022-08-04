@@ -2,13 +2,10 @@ name: CI
 on:
   push:
     branches:
-      - staging
-      - testing
-      - '1.8'
-      - '1.9'
       - master
-      # test branches, e.g. test-debian
-      - test-*
+      # fix and feature branches
+      - fix/*
+      - feature/*
 
 concurrency: ci-${{ github.ref }}
 
