@@ -629,7 +629,7 @@ jobs:
           MAILU_VERSION: ${{ env.MAILU_VERSION }}
           PINNED_MAILU_VERSION: ${{ env.PINNED_MAILU_VERSION }}
           BRANCH: ${{ env.BRANCH }}
-        run: cd tests && bash tests/deploy.sh
+        run: cd tests && bash ./deploy.sh
 
 #   tag-release:
 #     runs-on: ubuntu-latest
