@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - sync
       # fix and feature branches
       - fix/*
       - feature/*
