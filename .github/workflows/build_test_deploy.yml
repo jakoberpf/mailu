@@ -333,7 +333,7 @@ jobs:
      contents: read
      packages: read
     needs:
-      - build
+      - build-arm
     strategy:
       fail-fast: false
       matrix:
