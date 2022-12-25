@@ -1,10 +1,19 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import os
 import logging as log
+from pwd import getpwnam
 import sys
+from socrate import system
+
+os.system("chown mailu:mailu -R /dkim")
+os.system("find /data | grep -v /fetchmail | xargs -n1 chown mailu:mailu")
+mailu_id = getpwnam('mailu')
+os.setgid(mailu_id.pw_gid)
+os.setuid(mailu_id.pw_uid)
 
 log.basicConfig(stream=sys.stderr, level=os.environ.get("LOG_LEVEL", "INFO"))
+system.set_env(['SECRET'])
 
 os.system("flask mailu advertise")
 os.system("flask db upgrade")
@@ -15,7 +24,7 @@ password = os.environ.get("INITIAL_ADMIN_PW")
 
 if account is not None and domain is not None and password is not None:
     mode = os.environ.get("INITIAL_ADMIN_MODE", default="ifmissing")
-    log.info("Creating initial admin accout %s@%s with mode %s",account,domain,mode)
+    log.info("Creating initial admin account %s@%s with mode %s", account, domain, mode)
     os.system("flask mailu admin %s %s '%s' --mode %s" % (account, domain, password, mode))
 
 def test_DNS():
@@ -37,7 +46,7 @@ def test_DNS():
             try:
                 result = resolver.resolve('example.org', dns.rdatatype.A, dns.rdataclass.IN, lifetime=10)
             except Exception as e:
-                log.critical("Your DNS resolver at %s is not working (%s). Please see https://mailu.io/master/faq.html#the-admin-container-won-t-start-and-its-log-says-critical-your-dns-resolver-isn-t-doing-dnssec-validation", ns, e);
+                log.critical("Your DNS resolver at %s is not working (%s). Please see https://mailu.io/master/faq.html#the-admin-container-won-t-start-and-its-log-says-critical-your-dns-resolver-isn-t-doing-dnssec-validation", ns, e)
             else:
                 if result.response.flags & dns.flags.AD:
                     break

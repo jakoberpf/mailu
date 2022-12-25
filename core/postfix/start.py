@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import os
 import glob
@@ -13,6 +13,9 @@ from pwd import getpwnam
 from socrate import system, conf
 
 log.basicConfig(stream=sys.stderr, level=os.environ.get("LOG_LEVEL", "WARNING"))
+system.set_env()
+
+os.system("flock -n /queue/pid/master.pid rm /queue/pid/master.pid")
 
 def start_podop():
     os.setuid(getpwnam('postfix').pw_uid)
@@ -27,7 +30,6 @@ def start_podop():
         ("mailbox", "url", url + "mailbox/§"),
         ("recipientmap", "url", url + "recipient/map/§"),
         ("sendermap", "url", url + "sender/map/§"),
-        ("senderaccess", "url", url + "sender/access/§"),
         ("senderlogin", "url", url + "sender/login/§"),
         ("senderrate", "url", url + "sender/rate/§")
     ])
@@ -44,10 +46,6 @@ def is_valid_postconf_line(line):
 
 # Actual startup script
 os.environ['DEFER_ON_TLS_ERROR'] = os.environ['DEFER_ON_TLS_ERROR'] if 'DEFER_ON_TLS_ERROR' in os.environ else 'True'
-os.environ["FRONT_ADDRESS"] = system.get_host_address_from_environment("FRONT", "front")
-os.environ["ADMIN_ADDRESS"] = system.get_host_address_from_environment("ADMIN", "admin")
-os.environ["ANTISPAM_MILTER_ADDRESS"] = system.get_host_address_from_environment("ANTISPAM_MILTER", "antispam:11332")
-os.environ["LMTP_ADDRESS"] = system.get_host_address_from_environment("LMTP", "imap:2525")
 os.environ["POSTFIX_LOG_SYSLOG"] = os.environ.get("POSTFIX_LOG_SYSLOG","local")
 os.environ["POSTFIX_LOG_FILE"] = os.environ.get("POSTFIX_LOG_FILE", "")
 

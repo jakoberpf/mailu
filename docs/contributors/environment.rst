@@ -106,29 +106,32 @@ The development environment is quite similar to the production one.
 Building images
 ```````````````
 
-We supply a separate ``test/build.yml`` file for convenience.
+We supply a separate ``test/build.hcl`` file for convenience.
 After cloning the git repository to your workstation, you can build the images:
 
 .. code-block:: bash
 
   cd Mailu
-  docker-compose -f tests/build.yml build
+  docker buildx bake -f tests/build.hcl --load
 
-The ``build.yml`` file has two variables:
+The ``build.hcl`` file has three variables:
 
 #. ``$DOCKER_ORG``: First part of the image tag. Defaults to *mailu* and needs to be changed
    only  when pushing to your own Docker hub account.
-#. ``$VERSION``: Last part of the image tag. Defaults to *local* to differentiate from pulled
+#. ``$MAILU_VERSION``: Last part of the image tag. Defaults to *local* to differentiate from pulled
    images.
+#. ``$MAILU_PINNED_VERSION``: Last part of the image tag for x.y.z images. Defaults to *local* to differentiate from pulled
+   images.
+
 
 To re-build only specific containers at a later time.
 
 .. code-block:: bash
 
-  docker-compose -f tests/build.yml build admin webdav
+  docker buildx bake -f tests/build.hcl admin webdav
 
-If you have to push the images to Docker Hub for testing in Docker Swarm or a remote
-host, you have to define ``DOCKER_ORG`` (usually your Docker user-name) and login to
+If you have to push the images to Docker Hub for testing, you have to
+define ``DOCKER_ORG`` (usually your Docker user-name) and login to
 the hub.
 
 .. code-block:: bash
@@ -137,15 +140,15 @@ the hub.
   Username: Foo
   Password: Bar
   export DOCKER_ORG="Foo"
-  export VERSION="feat-extra-app"
-  docker-compose -f tests/build.yml build
-  docker-compose -f tests/build.yml push
+  export MAILU_VERSION="feat-extra-app"
+  export MAILU_PINNED_VERSION="feat-extra-app"
+  docker buildx bake -f tests/build.hcl --push
 
 Running containers
 ``````````````````
 
 To run the newly created images: ``cd`` to your project directory. Edit ``.env`` to set
-``VERSION`` to the same value as used during the build, which defaults to ``local``.
+``VERSION`` to the same value as used during the build (for MAILU_VERSION), which defaults to ``local``.
 After that you can run:
 
 .. code-block:: bash
@@ -277,7 +280,7 @@ Merge conflicts
 Before proceeding, check the PR page in the bottom. It should not indicate a merge conflict.
 If there are merge conflicts, you have 2 options:
 
-#. Do a review "request changes" and ask the author to resolve the merge conflict. 
+#. Do a review "request changes" and ask the author to resolve the merge conflict.
 #. Solve the merge conflict yourself on Github, using the web editor.
 
 If it can't be done in the web editor, go for option 1. Unless you want to go through the trouble of
@@ -309,35 +312,48 @@ The following must be done on every PR or after every new commit to an existing 
 If git opens a editor for a commit message just save and exit as-is. If you have a merge conflict,
 see above and do the complete procedure from ``git fetch`` onward again.
 
-Web administration
-------------------
 
-The administration Web interface requires a proper dev environment that can easily be setup using
-``virtualenv`` (make sure you are using Python 3) :
+Web administration development
+------------------------------
+
+The administration web interface requires a proper dev environment that can easily
+be setup using the ``run_dev.sh`` shell script. You need ``docker`` or ``podman``
+to run it. It will create a local webserver listening at port 8080:
 
 .. code-block:: bash
 
   cd core/admin
-  virtualenv .
-  source bin/activate
+  ./run_dev.sh
   pip install -r requirements.txt
+  [...]
+  =============================================================================
+  The "mailu-dev" container was built using this configuration:
 
-You can then export the path to the development database (use four slashes for absolute path):
+  DEV_NAME="mailu-dev"
+  DEV_DB=""
+  DEV_PROFILER="false"
+  DEV_LISTEN="127.0.0.1:8080"
+  DEV_ADMIN="admin@example.com"
+  DEV_PASSWORD="letmein"
+  =============================================================================
+  [...]
+  =============================================================================
+  The Mailu UI can be found here: http://127.0.0.1:8080/sso/login
+  You can log in with user admin@example.com and password letmein
+  =============================================================================
+
+The container will use an empty database and a default user/password unless you
+specify a database file to use by setting ``$DEV_DB``.
 
 .. code-block:: bash
 
-  export SQLALCHEMY_DATABASE_URI=sqlite:///path/to/dev.db
-
-And finally run the server with debug enabled:
-
-.. code-block:: bash
-
-  python run.py
+  DEV_DB="/path/to/dev.db" ./run_dev.sh
 
 Any change to the files will automatically restart the Web server and reload the files.
 
-When using the development environment, a debugging toolbar is displayed on the right side
-of the screen, that you can open to access query details, internal variables, etc.
+When using the development environment, a debugging toolbar is displayed on the right
+side of the screen, where you can access query details, internal variables, etc.
+
 
 Documentation
 -------------

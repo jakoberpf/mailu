@@ -2,7 +2,6 @@
 """
 
 import os
-import smtplib
 import json
 
 from datetime import date
@@ -25,6 +24,7 @@ from flask import current_app as app
 from sqlalchemy.ext import declarative
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.inspection import inspect
+from sqlalchemy.orm.attributes import flag_modified
 from werkzeug.utils import cached_property
 
 from mailu import dkim, utils
@@ -153,6 +153,10 @@ class Base(db.Model):
             primary = getattr(self, self.__table__.primary_key.columns.values()[0].name)
             self.__hashed = id(self) if primary is None else hash(primary)
         return self.__hashed
+
+    def dont_change_updated_at(self):
+        """ Mark updated_at as modified, but keep the old date when updating the model"""
+        flag_modified(self, 'updated_at')
 
 
 # Many-to-many association table for domain managers
@@ -415,14 +419,18 @@ class Email(object):
 
     def sendmail(self, subject, body):
         """ send an email to the address """
-        f_addr = f'{app.config["POSTMASTER"]}@{idna.encode(app.config["DOMAIN"]).decode("ascii")}'
-        with smtplib.SMTP(app.config['HOST_AUTHSMTP'], port=10025) as smtp:
-            to_address = f'{self.localpart}@{idna.encode(self.domain_name).decode("ascii")}'
-            msg = text.MIMEText(body)
-            msg['Subject'] = subject
-            msg['From'] = f_addr
-            msg['To'] = to_address
-            smtp.sendmail(f_addr, [to_address], msg.as_string())
+        try:
+            f_addr = f'{app.config["POSTMASTER"]}@{idna.encode(app.config["DOMAIN"]).decode("ascii")}'
+            with smtplib.LMTP(ip=app.config['IMAP_ADDRESS'], port=2525) as lmtp:
+                to_address = f'{self.localpart}@{idna.encode(self.domain_name).decode("ascii")}'
+                msg = text.MIMEText(body)
+                msg['Subject'] = subject
+                msg['From'] = f_addr
+                msg['To'] = to_address
+                lmtp.sendmail(f_addr, [to_address], msg.as_string())
+            return True
+        except smtplib.SMTPException:
+            return False
 
     @classmethod
     def resolve_domain(cls, email):
@@ -439,10 +447,15 @@ class Email(object):
         localpart_stripped = None
         stripped_alias = None
 
-        delim = os.environ.get('RECIPIENT_DELIMITER')
-        if delim in localpart:
-            localpart_stripped = localpart.rsplit(delim, 1)[0]
+        if delims := os.environ.get('RECIPIENT_DELIMITER'):
+            try:
+                pos = next(i for i, c in enumerate(localpart) if c in delims)
+            except StopIteration:
+                pass
+            else:
+                localpart_stripped = localpart[:pos]
 
+        # is localpart@domain_name or localpart_stripped@domain_name an user?
         user = User.query.get(f'{localpart}@{domain_name}')
         if not user and localpart_stripped:
             user = User.query.get(f'{localpart_stripped}@{domain_name}')
@@ -450,19 +463,18 @@ class Email(object):
         if user:
             email = f'{localpart}@{domain_name}'
 
-            if user.forward_enabled:
-                destination = user.forward_destination
-                if user.forward_keep or ignore_forward_keep:
-                    destination.append(email)
-            else:
-                destination = [email]
+            if not user.forward_enabled:
+                return [email]
 
+            destination = user.forward_destination
+            if user.forward_keep or ignore_forward_keep:
+                destination.append(email)
             return destination
 
-        pure_alias = Alias.resolve(localpart, domain_name)
-
-        if pure_alias and not pure_alias.wildcard:
-            return pure_alias.destination
+        # is localpart, domain_name or localpart_stripped@domain_name an alias?
+        if pure_alias := Alias.resolve(localpart, domain_name):
+            if not pure_alias.wildcard:
+                return pure_alias.destination
 
         if stripped_alias := Alias.resolve(localpart_stripped, domain_name):
             return stripped_alias.destination
@@ -492,6 +504,7 @@ class User(Base, Email):
     # Features
     enable_imap = db.Column(db.Boolean, nullable=False, default=True)
     enable_pop = db.Column(db.Boolean, nullable=False, default=True)
+    allow_spoofing = db.Column(db.Boolean, nullable=False, default=False)
 
     # Filters
     forward_enabled = db.Column(db.Boolean, nullable=False, default=False)
@@ -509,7 +522,7 @@ class User(Base, Email):
     displayed_name = db.Column(db.String(160), nullable=False, default='')
     spam_enabled = db.Column(db.Boolean, nullable=False, default=True)
     spam_mark_as_read = db.Column(db.Boolean, nullable=False, default=True)
-    spam_threshold = db.Column(db.Integer, nullable=False, default=80)
+    spam_threshold = db.Column(db.Integer, nullable=False, default=lambda:int(app.config.get("DEFAULT_SPAM_THRESHOLD", 80)))
 
     # Flask-login attributes
     is_authenticated = True
@@ -537,8 +550,8 @@ class User(Base, Email):
         now = date.today()
         return (
             self.reply_enabled and
-            self.reply_startdate < now and
-            self.reply_enddate > now
+            self.reply_startdate <= now and
+            self.reply_enddate >= now
         )
 
     @property
@@ -762,6 +775,8 @@ class Fetch(Base):
     username = db.Column(db.String(255), nullable=False)
     password = db.Column(db.String(255), nullable=False)
     keep = db.Column(db.Boolean, nullable=False, default=False)
+    scan = db.Column(db.Boolean, nullable=False, default=False)
+    folders = db.Column(CommaSeparatedList, nullable=True, default=list)
     last_check = db.Column(db.DateTime, nullable=True)
     error = db.Column(db.String(1023), nullable=True)
 

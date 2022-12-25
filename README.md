@@ -23,8 +23,8 @@ Main features include:
 - **Web access**, multiple Webmails and administration interface
 - **User features**, aliases, auto-reply, auto-forward, fetched accounts
 - **Admin features**, global admins, announcements, per-domain delegation, quotas
-- **Security**, enforced TLS, DANE, MTA-STS, Letsencrypt!, outgoing DKIM, anti-virus scanner
-- **Antispam**, auto-learn, greylisting, DMARC and SPF
+- **Security**, enforced TLS, DANE, MTA-STS, Letsencrypt!, outgoing DKIM, anti-virus scanner, [Snuffleupagus](https://github.com/jvoisin/snuffleupagus/), block malicious attachments
+- **Antispam**, auto-learn, greylisting, DMARC and SPF, anti-spoofing
 - **Freedom**, all FOSS components, no tracker included
 
 ![Domains](docs/assets/screenshots/domains.png)
