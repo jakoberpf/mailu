@@ -1,11 +1,13 @@
-name: start-linux-arm
+name: CI
 on:
   push:
     branches:
-      - '1.9'
       - master
+      # fix and feature branches
+      - fix/*
+      - feature/*
 
-concurrency: ci-arm-${{ github.ref }}
+concurrency: ci-${{ github.ref }}
 
 ###############################################
 # REQUIRED secrets
@@ -19,8 +21,8 @@ concurrency: ci-arm-${{ github.ref }}
 # DOCKER_ORG, docker org used for pushing release images (branch x.y and master)
 # DOCKER_ORG_TEST, docker org used for pushing images for testing (branch testing).
 env:
-  DOCKER_ORG: mailu
-  DOCKER_ORG_TEST: mailuci
+  DOCKER_ORG: jakoberpf
+  DOCKER_ORG_TEST: jakoberpfci
 
 jobs:
 # This job calculates all global job variables that are required by all the subsequent jobs.
@@ -76,9 +78,9 @@ jobs:
       - derive-variables
     uses: ./.github/workflows/build_test_deploy.yml
     with:
-      architecture: 'linux/arm64/v8,linux/arm/v7'
-      mailu_version: ${{needs.derive-variables.outputs.MAILU_VERSION}}-arm
-      pinned_mailu_version: ${{needs.derive-variables.outputs.PINNED_MAILU_VERSION}}-arm
+      architecture: 'linux/amd64,linux/arm64/v8,linux/arm/v7'
+      mailu_version: ${{needs.derive-variables.outputs.MAILU_VERSION}}
+      pinned_mailu_version: ${{needs.derive-variables.outputs.PINNED_MAILU_VERSION}}
       docker_org: ${{needs.derive-variables.outputs.DOCKER_ORG}}
       branch: ${{needs.derive-variables.outputs.BRANCH}}
       deploy: ${{needs.derive-variables.outputs.DEPLOY}}
